@@ -2,7 +2,7 @@
 
 * Genomics data analysis code for reproduction of figures in Martinez Pastor et al., "Rapid rewiring of an archaeal transcription factor function via flexible cis-trans interactions"
 * Raw data file can be downloaded from NCBI GEO (https://www.ncbi.nlm.nih.gov/geo/) by the following accession numbers:
-    * GSE279075 (ChIP-seq data)
+    * GSE279075 (ChIP-seq data. Note that the BAM files called in the R code for ChIP-seq data plotting are too large to house on github. These can be generated from raw data at the aforementioned GSE, or made available upon request)
     * GSE279016 (RNA-seq data)
 
 ## Dependencies
