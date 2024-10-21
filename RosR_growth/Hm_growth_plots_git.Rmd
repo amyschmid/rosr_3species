@@ -1,0 +1,158 @@
+---
+title: "Haloferax mediterranei RosR growth curves"
+author: "Amy Schmid, Cynthia Darnell"
+date: "October 21, 2024"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+## Setup
+
+```{r setup, include=FALSE}
+#fresh start
+rm(list = ls())
+
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+#read in the data
+```{r}
+
+Filtered_data_AKS <- read.csv('Hm_filter_AKS.csv')
+
+```
+
+
+#plot the relevant conditions, pyrE vs rosR, for supplementary figure
+```{r}
+
+#Filtered_data_short <- filter (Filtered_data_AKS, Time <= 30)
+pdf("FigS1_Hm_growth_rawplot.pdf", width = 4, height = 8)
+ggplot(Filtered_data_AKS, aes(x=Time, y=OD)) +
+  geom_point(aes(color = Strain), size = 0.5, alpha = 0.2) +
+  geom_smooth(method = 'gam', formula = y ~ s(x, bs = "cs"),
+              aes(color = Strain)) +
+  scale_y_log10(limits=c(0.01, 1.5)) +
+  scale_color_manual(values = c("black", "salmon")) +
+  theme_minimal() +
+  labs(x="Time (hours)", y="OD600") +
+  theme(legend.position ='bottom') +
+  facet_wrap(~factor(Condition, levels=c('standard', '0.5 mM H2O2', '2 mM paraquat')), ncol = 1)
+dev.off()
+```
+
+#plot the relevant conditions, pyrE vs rosR, for main figure
+```{r}
+#a simplified version of the supplementary figure
+#Filtered_data_short <- filter (Filtered_data_AKS, Time <= 30)
+pdf("Fig3_Hm_growth.pdf", width = 4, height = 8)
+ggplot(Filtered_data_AKS, aes(x=Time, y=OD)) +
+ # geom_point(aes(color = Strain), size = 0.5, alpha = 0.2) +
+  geom_smooth(method = 'gam', formula = y ~ s(x, bs = "cs"),
+              aes(color = Strain)) +
+  scale_y_log10(limits=c(0.01, 1.5)) +
+  scale_color_manual(values = c("black", "salmon")) +
+  theme_minimal() +
+  labs(x="Time (hours)", y="OD600") +
+  theme(legend.position ='bottom') +
+  facet_wrap(~factor(Condition, levels=c('standard', '0.5 mM H2O2', '2 mM paraquat')), ncol = 1)
+dev.off()
+```
+
+
+#plot the titration data for parent strain only (pyrE)
+
+```{r}
+#select conditions of interest, just pyrE
+H2O2 <-subset(Filtered_data, Condition == 'standard' | Condition == '0.5 mM H2O2' | Condition == '1 mM H2O2' | Condition == '2 mM H2O2' ) %>% #death seen at 2 mM H2O2, don't need to show 3 it's redundant
+  filter(Strain == "pyrE2") %>%
+  filter (Time <=30) 
+  
+paraquat <- subset(Filtered_data, Condition == 'standard' | Condition == '1 mM paraquat' | Condition == '2 mM paraquat' | Condition == '3 mM paraquat' | Condition == '4 mM paraquat' | Condition == '5 mM paraquat')  %>%
+  filter(Strain == "pyrE2") %>%
+  filter (Time <=30) 
+
+```
+
+#Plot the H2O2 data
+```{r}
+#supplementary figure, all data
+#set the colors
+cond.cols.h2o2 <- c(`standard` = "black", `0.5 mM H2O2` = "orange4",  `1 mM H2O2` ="orange", `2 mM H2O2` = "grey")
+
+#print supp figure with all datapoints
+pdf("FigS1_Hm_H2O2_growth_gamplot.pdf", width = 4, height =4)
+ggplot(H2O2, aes(x=Time, y=OD)) +
+  geom_point(aes(color = Condition), size = 0.5, alpha = 0.2) +
+  geom_smooth(aes(color = Condition), method = 'gam', formula = y ~ s(x, bs = "cs")) +
+  scale_y_log10(limits=c(0.01, 1.5)) +
+  scale_color_manual(values = cond.cols.h2o2) +
+  theme_minimal() +
+  labs(x="Time (hours)", y="OD600") +
+  theme(legend.position ='bottom') 
+ # facet_wrap(~oxidant) +
+ 
+ 
+
+dev.off()
+
+
+#print summary geom smooth plot for simplified main text figure
+pdf("Fig2_Hm_H2O2_growth_gamplot.pdf", width = 4, height = 4)
+ggplot(H2O2, aes(x=Time, y=OD)) +
+ # geom_point(aes(color = Condition), size = 0.5, alpha = 0.2) +
+  geom_smooth(aes(color = Condition), method = 'gam', formula = y ~ s(x, bs = "cs")) +
+  scale_y_log10(limits=c(0.01, 1.5)) +
+  scale_color_manual(values = cond.cols.h2o2) +
+  theme_minimal() +
+  labs(x="Time (hours)", y="OD600") +
+  theme(legend.position ='bottom') 
+ # facet_wrap(~oxidant) +
+ 
+  
+dev.off()
+```
+
+
+#Plot the PQ data
+```{r}
+#supplementary figure, all data
+#set the colors
+cond.cols.PQ <- c(`standard` = "black", `1 mM paraquat` = "orange4",  `2 mM paraquat` ="orange", `3 mM paraquat` = "tan", `4 mM paraquat` = "bisque", `5 mM paraquat` = "grey90")
+
+#print supp figure with all datapoints
+pdf("FigS1_Hm_PQ_growth_gamplot.pdf", width = 4, height =4)
+ggplot(paraquat, aes(x=Time, y=OD)) +
+  geom_point(aes(color = Condition), size = 0.5, alpha = 0.2) +
+  geom_smooth(aes(color = Condition), method = 'gam', formula = y ~ s(x, bs = "cs")) +
+  scale_y_log10(limits=c(0.01, 1.5)) +
+  scale_color_manual(values = cond.cols.PQ) +
+  theme_minimal() +
+  labs(x="Time (hours)", y="OD600") +
+  theme(legend.position ='bottom') 
+ # facet_wrap(~oxidant) +
+ 
+ 
+
+dev.off()
+
+
+#print summary geom smooth plot for simplified main text figure
+pdf("Fig2_Hm_PQ_growth_gamplot.pdf", width = 4, height = 4)
+ggplot(paraquat, aes(x=Time, y=OD)) +
+ # geom_point(aes(color = Condition), size = 0.5, alpha = 0.2) +
+  geom_smooth(aes(color = Condition), method = 'gam', formula = y ~ s(x, bs = "cs")) +
+  scale_y_log10(limits=c(0.01, 1.5)) +
+  scale_color_manual(values = cond.cols.PQ) +
+  theme_minimal() +
+  labs(x="Time (hours)", y="OD600") +
+  theme(legend.position ='bottom') 
+ # facet_wrap(~oxidant) +
+ 
+  
+dev.off()
+```
+
+

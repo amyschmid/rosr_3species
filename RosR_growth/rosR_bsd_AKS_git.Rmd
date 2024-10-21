@@ -1,0 +1,292 @@
+---
+title: "RosR growth full"
+author: "Amy Schmid, Cynthia Darnell"
+date: "Oct21,2024"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+
+#fresh start
+rm(list = ls())
+
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+
+```
+
+## Read in raw data files and tidy
+
+```{r read and tidy}
+
+Raw_untidy <- read.csv("Raw_growth_data_rosR_full.csv", header=TRUE, check.names=FALSE)
+#note not all of these data were included in the manuscript due to technical reasons. If you reuse these data please use only the filtered data below (i.e, the "data_filter" object below includes only those were used in the final published manuscript).
+Raw <- Raw_untidy %>%
+  pivot_longer(cols = `0`:`96`, names_to = "Time", values_to = "OD")
+
+Raw$Time <- as.numeric(Raw$Time)
+head(Raw)
+
+```
+
+```{r}
+
+unique(Raw$Experiment)
+
+```
+
+## Subtract blank per experiment (lowest value - 0.02)
+
+```{r}
+blank <- Raw %>%
+  group_by(interaction(Experiment, Species)) %>%
+  summarise(minOD = min(OD, na.rm = TRUE) - 0.002) %>%
+  rename(blank_ID = `interaction(Experiment, Species)`)
+
+data <- Raw %>%
+  mutate(blank_ID = interaction(Experiment, Species)) %>%
+  left_join(blank, by = 'blank_ID') %>%
+  mutate(newOD = OD - minOD)
+
+
+```
+
+## Subset conditions finally used in the ms 
+```{r}
+data_filter <- filter(data, Experiment == '20150716' | Experiment == '20150721' | Experiment == 'AH_med42'| Experiment == "20150617" |  Experiment == '20150919' |Experiment == '20160316' | Experiment == '20160321' | Experiment == '20141023' | Experiment == '20150607' ) %>%
+  filter( Condition == 'standard' | Condition == '0.5 mM H2O2' | Condition == '0.667 mM paraquat' | Condition == "2 mM paraquat" | Condition == "5 mM H2O2" | Condition == "0.333 mM paraquat") %>%
+  filter (! Strain == "blank")
+
+
+
+unique(data_filter$Strain)
+unique(data_filter$Condition)
+unique(data_filter$Species)
+```
+
+
+### Format for bsd
+
+``` {r echo = FALSE}
+#pivot to wide format
+reuntidy <- data_filter %>%
+  dplyr::select(-c(OD, minOD)) %>%
+  pivot_wider(names_from = Time, values_from = newOD)
+
+output<-dplyr::select (reuntidy, -c(ID, Speed,blank_ID )) 
+#write output file for supplementary table 3 of paper
+write.csv(output, "Table_S3_growth.csv")
+
+bsd_data <- reuntidy %>%
+  dplyr::select(-c(Experiment, Well, Species, Strain, Biological_replicate, 
+            Technical_replicate, Speed, Media, Condition, blank_ID))
+
+bsd_data_colnames <- bsd_data$name
+bsd_data_rownames <- bsd_data$ID
+bsd_data_t <- as.data.frame(t(bsd_data[, -1]))
+colnames(bsd_data_t) <- bsd_data_colnames %>%
+  as.numeric()
+colnames(bsd_data_t) <- bsd_data_rownames
+
+bsd_data_t <- tibble::rownames_to_column(bsd_data_t, "Time")
+
+
+# Trim to 48 hours for bsd
+
+bsd_48 <- bsd_data_t[1:97,]
+
+#remove first 3 hours of each time course to avoid 0 subraction errors in mumax 
+
+bsd_48_remove3 <- subset (bsd_48, Time > 3.0)
+write.csv (bsd_48_remove3, 'bsd_input_final_3plus.csv', row.names = FALSE)
+
+#write.csv(bsd_48, 'bsd_input_final_AKS.csv', row.names = FALSE)
+
+```
+
+## Source bsd and extract xn.auc
+### Rmd spits out errors that console doesn't, so you may want to copy/paste lines
+```{r}
+#make sure bsdAnalysisFunc.R is in working directory
+
+source('bsdAnalysisFunc.R')
+
+bsd <- bsdProcess('bsd_input_final_3plus.csv', convert.time = FALSE)
+result_AUC <- apply(bsd$xn, 2, function(y) {simp(y, x=bsd$at)})
+mumax <- getMuMax(bsd$mu)
+#result <- cbind(xn.auc, mumax)
+write.csv(result_AUC, 'AUC_bsd_result_AKS.csv', row.names = TRUE)
+write.csv(mumax, "mumax_bsd_result_AKS.csv", row.names = TRUE)
+
+```
+
+## Merge AUC back to data frame to provide metadata for each curve unique ID
+
+```{r}
+
+result_AUC_frame <- as.data.frame(result_AUC)
+result_AUC_frame <- tibble::rownames_to_column(result_AUC_frame, "ID")
+
+data_AUC <- merge(data_filter, result_AUC_frame, by = 'ID', all.y = TRUE)
+
+#compress the data frame such that there is only one AUC value per ID growth curve (rather than a repeated AUC per each time point)
+auc.unique  <- data_AUC[!duplicated(data_AUC$result_AUC ), ]
+auc.unique <- select (auc.unique, -Time)
+write.csv(auc.unique,"AUC_all_AKS.csv" )
+
+```
+
+## Merge mumax back to data frame to provide metadata for each curve unique ID
+
+```{r}
+
+result_mu_frame <- as.data.frame(mumax)
+result_mu_frame <- tibble::rownames_to_column(as.data.frame(mumax), "ID")
+
+data_mu <- merge(data_filter, result_mu_frame, by = 'ID', all.y = TRUE)
+
+#compress the data frame such that there is only one mu value per ID growth curve (rather than a repeated AUC per each time point)
+mu.unique  <- data_mu[!duplicated(data_mu$mumax ), ]
+mu.unique <- select (mu.unique, -Time)
+write.csv(mu.unique,"mu_all_AKS.csv" )
+
+```
+
+## calculate stats
+```{r}
+#remove unnecesary columns
+auc.final <- select (auc.unique, -c(ID, Experiment, Well, Speed, Media, OD, blank_ID, minOD, newOD))
+mu.final <- select (mu.unique, -c(ID, Experiment, Well, Speed, Media, OD, blank_ID, minOD, newOD))
+
+#auc stats
+stats.auc <- plyr::ddply (auc.final, c("Strain", "Condition", "Species"), summarise, avg.auc = mean (result_AUC), sd = sd (result_AUC), number.observations = length (result_AUC), sem = (sd(result_AUC))/sqrt(number.observations))
+
+stats.mu <- plyr::ddply(mu.final, c("Strain", "Condition", "Species"), summarise, avg.mu = mean (mumax), sd = sd (mumax), number.observations = length (mumax), sem = (sd(mumax))/sqrt(number.observations))
+#mu stats
+
+#write output files
+write.csv (stats.auc, file = "stats_AUC_all_AKS.csv")
+write.csv (stats.mu, file = "stats_mu_all_AKS.csv")
+```
+
+### Plot AUCs by species
+
+```{r}
+
+hv_AUC <- filter(stats.auc, Species == 'Haloferax volcanii' ) %>%
+  filter (!Condition == "0.333 mM paraquat")
+
+#pdf("Hv_AUC_allconds_AKS.pdf", width = 6, height = 3)
+ggplot(hv_AUC, aes(x = Strain, y = avg.auc, fill = Strain)) +
+  #geom_point(aes(color = Strain, group = ID)) +
+  geom_bar( stat = "identity", position_dodge = 0.9, alpha = 0.5) +
+  theme_light() +
+   scale_fill_manual(values = c("black", "salmon")) +
+    geom_errorbar(aes(ymin = avg.auc - sem, ymax = avg.auc + sem),
+    width = .1,
+    size = 1, position = position_dodge(0.9)
+  ) +
+  labs(y = "AUC", title = "Hfx. volcanii") +
+  facet_wrap(~Condition) +
+  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+   #     strip.background = element_rect(fill = 'black'), 
+    #    legend.position = 'bottom') +
+  #scale_color_viridis_d('Strain', begin = 0, end = 0.7) +
+  #scale_fill_viridis_d('Strain', begin = 0, end = 0.7) +
+    
+  NULL
+#dev.off()
+
+
+#ggsave("Hv_AUC_all.pdf", width = 8.5, height = 11)
+
+```
+
+```{r}
+
+hm_AUC <- filter(stats.auc, Species == 'Haloferax mediterranei' ) 
+  
+#pdf("Hm_AUC_allconds_AKS.pdf", width = 6, height = 3)
+ggplot(hm_AUC, aes(x = Strain, y = avg.auc, fill = Strain)) +
+  #geom_point(aes(color = Strain, group = ID)) +
+  geom_bar( stat = "identity", alpha = 0.5) +
+  theme_light() +
+   scale_fill_manual(values = c("black", "salmon")) +
+    geom_errorbar(aes(ymin = avg.auc - sem, ymax = avg.auc + sem),
+    width = .1,
+    size = 1, position = position_dodge(0.9)
+  ) +
+  labs(y = "AUC", title = "Hfx. mediterranei") +
+  facet_wrap(~Condition) +
+  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+   #     strip.background = element_rect(fill = 'black'), 
+    #    legend.position = 'bottom') +
+  #scale_color_viridis_d('Strain', begin = 0, end = 0.7) +
+  #scale_fill_viridis_d('Strain', begin = 0, end = 0.7) +
+    
+  NULL
+#dev.off()
+
+
+
+
+```
+
+```{r}
+#Hbt salinarum 
+hs_AUC <- filter(stats.auc, Species == 'Halobacterium salinarum' ) 
+  
+#pdf("Hs_AUC_allconds_AKS.pdf", width = 6, height = 3)
+ggplot(hs_AUC, aes(x = Strain, y = avg.auc, fill = Strain)) +
+  #geom_point(aes(color = Strain, group = ID)) +
+  geom_bar( stat = "identity", alpha = 0.5) +
+  theme_light() +
+   scale_fill_manual(values = c("salmon", "black")) +
+    geom_errorbar(aes(ymin = avg.auc - sem, ymax = avg.auc + sem),
+    width = .1,
+    size = 1, position = position_dodge(0.9)
+  ) +
+  labs(y = "AUC", title = "Hbt. salinarum") +
+  facet_wrap(~Condition) +
+  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+   #     strip.background = element_rect(fill = 'black'), 
+    #    legend.position = 'bottom') +
+  #scale_color_viridis_d('Strain', begin = 0, end = 0.7) +
+  #scale_fill_viridis_d('Strain', begin = 0, end = 0.7) +
+    
+  NULL
+#dev.off()
+
+
+
+
+```
+
+
+#plot to see error bars for rosR vs pyrE2 in Hv
+```{r}
+ pdf("FigS1_HvAUC_0.5mMH2O2_barplot.pdf")
+ggplot(subset(as.data.frame (auc.stats.unique), Condition == "0.5 mM H2O2"), aes(x = Strain, y = avg.auc, fill = Condition)) +
+  xlab("") +
+  ylab("AUC") +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9)) +
+  geom_errorbar(aes(ymin = avg.auc - sd, ymax = avg.auc + sd),
+    width = .1,
+    size = 1, position = position_dodge(0.9)
+  ) +
+  
+  NULL
+dev.off()
+```
+
+
+```{r}
+#ttest
+H2O2 <- subset(auc.unique, Condition == "0.5 mM H2O2" )
+H2O2.pyr <- subset (H2O2, Strain == "pyrE2")
+H2O2.ros <- subset (H2O2, Strain == "rosR")
+t.test (H2O2.pyr$result_AUC, H2O2.ros$result_AUC, paired = FALSE)
+#rosR growth impairment relative to pyrE2 parent under 0.5mM H2O2 is not significant.
+```
