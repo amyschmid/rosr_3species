@@ -1,0 +1,35 @@
+##gff-version 1
+##source-version rtracklayer 1.46.0
+##date 2020-01-30
+NC_017941.2	rtracklayer	sequence_feature	79921	80221	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	99143	99443	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	165139	165439	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	299525	299825	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	300063	300363	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	309745	310045	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	427434	427734	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	474847	475147	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	546194	546494	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	1048773	1049073	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	1343636	1343936	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	1493210	1493510	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	1589189	1589489	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	1629152	1629452	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	1736461	1736761	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	1833020	1833320	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	2132751	2133051	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	2134024	2134324	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	2175867	2176167	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	2201052	2201352	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	2476382	2476682	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	2485040	2485340	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	2693642	2693942	.	.	.	NC_017941.2
+NC_017941.2	rtracklayer	sequence_feature	2729857	2730157	.	.	.	NC_017941.2
+NC_017943.1	rtracklayer	sequence_feature	174151	174451	.	.	.	NC_017943.1
+NC_017943.1	rtracklayer	sequence_feature	183989	184289	.	.	.	NC_017943.1
+NC_017944.1	rtracklayer	sequence_feature	16446	16746	.	.	.	NC_017944.1
+NC_017944.1	rtracklayer	sequence_feature	125418	125718	.	.	.	NC_017944.1
+NC_017944.1	rtracklayer	sequence_feature	186278	186578	.	.	.	NC_017944.1
+NC_017944.1	rtracklayer	sequence_feature	322924	323224	.	.	.	NC_017944.1
+NC_017944.1	rtracklayer	sequence_feature	499003	499303	.	.	.	NC_017944.1
+NC_017944.1	rtracklayer	sequence_feature	503328	503628	.	.	.	NC_017944.1

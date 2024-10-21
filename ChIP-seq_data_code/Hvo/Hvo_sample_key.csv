@@ -1,0 +1,5 @@
+pyrE2_IP_sorted.bam,pyrE2_WCE_sorted.bam,HVO-pyrE2-rosr-pks,Hv_pyrE2_IP,Hv_pyrE2_WCE,CD2_S9_L007_R1_001.fastq.gz,CD1_S8_L007_R1_001.fastq.gz
+RosRHA1_IP_sorted.bam,RosRHA1_WCE_sorted.bam,HVO-rosr1-pks,Hv_rosRHA1_IP,Hv_rosRHA1_WCE,CD4_S11_L007_R1_001.fastq.gz,CD3_S10_L007_R1_001.fastq.gz
+RosRHA2_IP_sorted.bam,RosRHA2_WCE_sorted.bam,HVO-rosr2-pks,Hv_rosRHA2_IP,Hv_rosRHA2_WCE,CD6_S13_L007_R1_001.fastq.gz,CD5_S12_L007_R1_001.fastq.gz
+RosRHA3_IP_sorted.bam,RosRHA3_WCE_sorted.bam,HVO-rosr3-pks,Hv_rosRHA3_IP,Hv_rosRHA3_WCE,CD8_S15_L007_R1_001.fastq.gz,CD7_S14_L007_R1_001.fastq.gz
+RosRHA4_IP_sorted.bam,RosRHA4_WCE_sorted.bam,HVO-rosr4-pks,Hv_rosRHA4_IP,Hv_rosRHA4_WCE,CD10_S17_L007_R1_001.fastq.gz,CD9_S16_L007_R1_001.fastq.gz

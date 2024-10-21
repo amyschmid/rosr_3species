@@ -1,0 +1,224 @@
+---
+title: "2020-01-22-peak_annotate_IRanges-HVO"
+output: html_document
+---
+
+##Annotating peaks!
+
+### Install packages (if not already installed)
+```{r}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install(version = "3.18")
+```
+
+```{r}
+BiocManager::install(c("GenomicRanges","rtracklayer", "ChIPseeker", "IRanges", "AnnotationHub"))
+```
+
+```{r}
+install.packages(c("tidyverse", "openxlsx"))
+
+```
+
+### Call libraries of packages (install these too if haven't already)
+```{r}
+library(tidyverse)
+library(GenomicRanges)
+library(GenomicFeatures)
+library(IRanges)
+library(openxlsx)
+library(rtracklayer)
+library(AnnotationHub)
+library(dplyr)
+#library(ChIPseeker)
+```
+
+
+### Read in GFF files of annotations for Hca
+see also https://stackoverflow.com/questions/29253412/finding-intergenic-regions
+```{r}
+gff <- GenomicFeatures::makeTxDbFromGFF("2023-GCF_000025685.1_ASM2568v1_genomic.gff", format = "gff")
+gff.df <- read_csv("20230911_hvol_GCF_000025685.1_ASM2568v1_genomic_gff_key.csv")
+
+#subset whole genome gff into promoter only (i.e. intergenic ranges) and gene only structures
+genes.only <- GenomicFeatures::genes(gff)
+genes.only.redu <- reduce(genes.only, ignore.strand = T)
+ig <- gaps(genes.only.redu)
+ig.only <- ig[strand(ig) == "*"] ## This step is important to avoid duplicate entries for each gene.
+
+pro250 <- GenomicRanges::promoters(genes.only, upstream = 250, downstream = 0)
+## Warning: this range of sequences misses large promoters and 3' UTRs (i.e. some IG space is skipped in the overlaps with ChIP-seq peaks)
+
+#pro500 <- GenomicRanges::promoters(genes.only, upstream = 500, downstream = 0)
+#gene.plus.pro250 <- GenomicRanges::punion(genes.only, pro250)
+#gene.plus.pro500 <- GenomicRanges::punion(genes.only, pro500)
+
+```
+
+### Group files containing peak lists that overlap between reps and show differential binding from output of diffbind
+
+
+### Find overlaps between peak genomic ranges and custom annotation objects (promoters vs genes)
+```{r}
+for (i in 1:length(filenames)) {
+  #import gff file and convert to dataframe
+  rosR.pks <- rtracklayer::import.gff(paste("peaklists/", filenames[i], sep = ""), format = "GFF")
+  rosR.pks.df <- as.data.frame(rosR.pks)
+
+
+  #add informative meta data
+  rosR.pks$peakID <- seq(1,length(rosR.pks))
+  rosR.pks$peakwidth <- rosR.pks.df$width
+  
+  #create hits objects of the overlaps (all peak widths have been standardized to 300bp wide. The must overlap a genomic feature by at least one third (100bps) to be called.) adjusting the overlap requirement changes the stringency of my peak annotation. 
+  GenomicRanges::findOverlaps(genes.only, rosR.pks, ignore.strand=T, minoverlap = 100) -> genes
+ GenomicRanges::findOverlaps(ig.only, rosR.pks, ignore.strand=T, minoverlap = 100) -> promoters
+  GenomicRanges::findOverlaps(pro250, rosR.pks, ignore.strand = T, minoverlap = 100) -> promoters2
+  #GenomicRanges::findOverlaps(gene.plus.pro500, rosR.pks, ignore.strand=T, minoverlap = 100) -> gene.pro
+  #GenomicRanges::findOverlaps(resize(ig.only, width = 600 + width (ig.only), fix = "center"), rosR.pks, ignore.strand=T, minoverlap = 100) -> promoters 
+
+  #get IRanges from hits objects and add informative metadata
+  genelist <- genes.only[queryHits(genes)] 
+  genelist$type <- rep("genic", length(genes))
+  genelist$reps <- rosR.pks$name[subjectHits(genes)]
+  pintersect(genes.only[queryHits(genes)], rosR.pks[subjectHits(genes)]) -> overlaps
+  genelist$overlap <- width(overlaps)
+  #genelist$overlap <- resize(overlaps, width = 0 + width(overlaps), fix = "center")
+  genelist$peakID <- rosR.pks$peakID[subjectHits(genes)]
+  
+  prolist <- ig.only[queryHits(promoters)]
+  prolist$type <- rep("promoter", length(promoters))
+  prolist$reps <- rosR.pks$name[subjectHits(promoters)]
+  pintersect(ig.only[queryHits(promoters)], rosR.pks[subjectHits(promoters)]) -> overlaps
+  prolist$overlap <- width(overlaps)
+ #prolist$overlap <- resize(overlaps, width = 600 + width(overlaps), fix = "center")
+  prolist$peakID <- rosR.pks$peakID[subjectHits(promoters)]
+  #prolist$gene_id <- NA
+  
+  prolist2 <- pro250[queryHits(promoters2)]
+  prolist2$type <- rep("promoter250", length(promoters2))
+  prolist2$reps <- rosR.pks$name[subjectHits(promoters2)]
+ pintersect(pro250[queryHits(promoters2)], rosR.pks[subjectHits(promoters2)]) -> overlaps#prolist2$overlap <- width(overlaps)
+  prolist2$peakID <- rosR.pks$peakID[subjectHits(promoters2)]
+  
+  # gene.prolist <- gene.plus.pro500[queryHits(gene.pro)]
+  #gene.prolist$type <- rep("promoter", length(gene.pro))
+ # gene.prolist$reps <- rosR.pks$name[subjectHits(gene.pro)]
+  #pintersect(gene.plus.pro500[queryHits(gene.pro)], rosR.pks[subjectHits(gene.pro)]) -> overlaps
+ # gene.prolist$overlap <- width(overlaps)
+ #gene.prolist$overlap <- resize(overlaps, width = 600 + width(overlaps), fix = "center")
+  #gene.prolist$peakID <- rosR.pks$peakID[subjectHits(gene.pro)]
+  
+  #convert seperate IRanges to Dataframes
+  seqs <- seq(1, length(genes))
+  as.data.frame(prolist) -> one
+  rownames(one) <- NULL
+  as.data.frame(genelist, row.names(seqs)) -> two
+  rownames(two) <- NULL
+  as.data.frame(prolist2) -> three
+  #rownames(three) <- NULL  
+  
+  #combine dfs (gene hits and promoter hits)
+  #final <- rbind(one, two) %>% arrange(seqnames, start, peakID)
+   final <- dplyr::bind_rows(one, two, three) %>% arrange(seqnames, start, peakID)
+  #colnames(final)[6] <- "locus_tag"
+   colnames(final)[9] <- "locus_tag"
+   
+
+  #merge with gff information (get NCBI annotations and locus names)
+  gff.df[gff.df$locus_tag %in% final$locus_tag,] -> tmp
+
+
+
+ # tmp[c(2,3,4,10)] -> tmp2
+#  left_join(final, tmp2, by = "locus_tag", na.rm=TRUE) -> final
+  
+   tmp[c(2,3,4,10)] -> tmp2
+  left_join(final, tmp2, by = "locus_tag") -> final
+
+
+  
+  #reorder
+  #final <- final[c(9,1,2,3,7,4,8,5,6,11,10,12)]
+
+  #write to excel file, storing results for each .gff as a different sheet (in the case where multiple peak lists, e.g. between conditions, are used)
+    if (i == 1) {
+      write.xlsx(final, "peaklists/HVO_genelists_2024.xlsx", str_remove_all(filenames[i], ".gff"), row.names = F, asTable = TRUE)
+    } else {
+        write.xlsx(final, "peaklists/HVO_genelists_2024.xlsx", str_remove_all(filenames[i], ".gff"), row.names = F, append = T, asTable = TRUE)}
+}
+```
+
+
+
+
+```{r}
+filenames
+```
+
+
+### Export bedfile for extracting promoter seqs for motif discovery
+
+```{r}
+ros <- rtracklayer::import(paste("peaklists/", filenames[1], sep = ""), format = "GFF")
+#DB <- rtracklayer::import(paste("peaklists/", filenames[1], sep = ""), format = "GFF")
+#glu1 <- rtracklayer::import(paste("peaklists/", filenames[5], sep = ""), format = "GFF")
+
+GenomicRanges::findOverlaps(pro250, ros, ignore.strand=T, minoverlap = 100) -> promoters
+#GenomicRanges::findOverlaps(pro250, DB, ignore.strand=T, minoverlap = 100) -> promoters2
+#GenomicRanges::findOverlaps(pro250, glu1, ignore.strand=T, minoverlap = 100) -> promoters.glu
+
+prolist <- pro250[queryHits(promoters)]
+prolist$type <- rep("promoter", length(promoters))
+pintersect(pro250[queryHits(promoters)], ros[subjectHits(promoters)]) -> overlaps
+prolist$overlap <- width(overlaps)
+
+#prolist2 <- pro250[queryHits(promoters2)]
+#prolist2$type <- rep("promoter", length(promoters2))
+#pintersect(pro250[queryHits(promoters2)], DB[subjectHits(promoters2)]) -> overlaps
+#prolist2$overlap <- width(overlaps)
+
+#prolist.glu <- pro250[queryHits(promoters.glu)]
+#prolist.glu$type <- rep("promoter", length(promoters.glu))
+#pintersect(pro250[queryHits(promoters.glu)], glu1[subjectHits(promoters.glu)]) -> overlaps
+#prolist.glu$overlap <- width(overlaps)
+
+#remove differentially bound peaks form glucose list:
+#prolist.glu <-  unique(IRanges::subsetByOverlaps(prolist.glu, prolist2, invert = T))
+
+#all <- c(prolist, prolist2)
+all <- unique(prolist)
+
+gene.names <- vector()
+for (gene in all$gene_id) {
+  tmp <- gff.df[gff.df$locus_tag == gene,]
+  if (nrow(tmp) == 1) {
+    gene.names <- append(gene.names, tmp$locus_tag)
+  } else {
+    gene.names <- append(gene.names, NA)
+  }
+}
+
+all$locus_tag <- gene.names
+
+gene.names <- vector()
+for (gene in prolist$gene_id) {
+  tmp <- gff.df[gff.df$locus_tag == gene,]
+  if (nrow(tmp) == 1) {
+    gene.names <- append(gene.names, tmp$locus_tag)
+  } else {
+    gene.names <- append(gene.names, NA)
+  }
+}
+prolist$locus_tag <- gene.names
+
+rtracklayer::export(all, "peaklists/promoters_ros_hvo.bed", format = "bed")
+#rtracklayer::export(prolist.glu, "peaklists/promoters_glu.bed", format = "bed")
+
+#in terminal with bedtools loaded, run:
+#bedtools getfasta -fi ../GCF_000223905.1_ASM22390v1_genomic.fna -bed promoters.bed > promoter_seqs.fna
+
+```
+
+

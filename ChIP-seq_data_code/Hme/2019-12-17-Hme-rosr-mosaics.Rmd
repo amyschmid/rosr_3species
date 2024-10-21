@@ -1,0 +1,185 @@
+---
+title: "2019-12-17-Hme-rosr-mosaics"
+output: html_document
+---
+---
+title: "2019-10-25-Hca-rosr-mosaics"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Haloarcula hispanica ChIP-seq peak calling with mosaics
+
+```{r}
+### Peak calling script using MOSAiCS R package for use with 'RosR_ChIP-seq_pipeline'
+# Cynthia L. Darnell, Rylee K. Hackley, and Amy K. Schmid
+# https://github.com/amyschmid/rosr-chip-utils/tree/master/RosR_ChIP-seq_pipeline
+
+# MOSAiCS 
+# Dongjun Chung, Pei Fen Kuan, Rene Welch, Sunduz Keles
+# https://bioconductor.org/packages/release/bioc/html/mosaics.html
+```
+
+## Set up
+```{r}
+#Assumes that these packages are already installed (Hca analyzed first, see "2019-10-25-Hca-rosr-mosaics.Rmd" file for the details of how to install.)
+library(mosaics)
+library(hexbin)
+library(tidyverse)
+```
+
+## Load in sorted bam (aligned to genome) files, specify which columns contain IPs and which contain input control (WCE)
+```{r}
+sample_file <- read_csv("hme_sample_key.csv", col_names = F)
+
+IP_files <- unique(sample_file$X1)
+WCE_files <- sample_file$X2
+```
+
+
+
+## Construct genomic bins for all samples, IPs - cap = 0
+```{r}
+# can change params according to dataset: fragLen, binSize, PET (paired end data) vs SET (single end data), can parallelize onto multiple cores (parallel = TRUE). Start with fragLen 200, then optimize once ChIP-QC is conducted (see below).
+
+for (i in 1:length(IP_files)){
+  
+  constructBins(infile=paste("aligned_files/", IP_files[i], sep=""),
+                fileFormat="bam",
+                outfileLoc="mosaics/bins/",
+                byChr=FALSE,
+                fragLen=200,
+                binSize=200,
+                capping=0,
+                PET=FALSE)
+}
+
+```
+
+## Construct genomic bins, WCEs
+```{r}
+for (i in 1:length(WCE_files)){
+  
+  constructBins(infile=paste("aligned_files/", WCE_files[i], sep=""),
+                fileFormat="bam",
+                outfileLoc="mosaics/bins/",
+                byChr=FALSE,
+                fragLen=200,
+                binSize=200,
+                capping=0,
+                PET=FALSE)
+}
+```
+
+### Compare bioreps
+```{r}
+#rep1 v 2
+bin_rep<-readBins(type = c("chip","input"), fileName = c("mosaics/bins/CD4_sorted.bam_fragL200_bin200.txt", "mosaics/bins/CD6_sorted.bam_fragL200_bin200.txt"))
+
+
+a1.2 <- hexbin(bin_rep@tagCount, bin_rep@input, xbins = 100)
+hbp1.2 = plot(a1.2, trans = log, inv = exp, xlab = "rep1", ylab = "rep2", main = "", colramp = rainbow)
+
+dev.copy(png, 'mosaics/plots/rep1v2.png')
+dev.off()
+```
+
+```{r}
+#rep 2 v 3
+bin_rep<-readBins(type = c("chip","input"), fileName = c("mosaics/bins/CD6_sorted.bam_fragL200_bin200.txt", "mosaics/bins/CD8_sorted.bam_fragL200_bin200.txt"))
+
+
+a2.3 <- hexbin(bin_rep@tagCount, bin_rep@input, xbins = 100)
+hbp2.3= plot(a2.3, trans = log, inv = exp, xlab = "rep2", ylab = "rep3", main = "", colramp = rainbow)
+
+dev.copy(png, 'mosaics/plots/rep2v3.png')
+dev.off()
+```
+
+```{r}
+#rep 3 v 4
+bin_rep<-readBins(type = c("chip","input"), fileName = c("mosaics/bins/CD8_sorted.bam_fragL200_bin200.txt", "mosaics/bins/CD10_sorted.bam_fragL200_bin200.txt"))
+
+a3.4 <- hexbin(bin_rep@tagCount, bin_rep@input, xbins = 100)
+hbp3.4= plot(a3.4, trans = log, inv = exp, xlab = "rep3", ylab = "rep4", main = "", colramp = rainbow)
+
+dev.copy(png, 'mosaics/plots/rep3v4.png')
+dev.off()
+```
+
+```{r}
+#rep 1 v 4
+bin_rep<-readBins(type = c("chip","input"), fileName = c("mosaics/bins/CD4_sorted.bam_fragL200_bin200.txt", "mosaics/bins/CD10_sorted.bam_fragL200_bin200.txt"))
+
+a1.4 <- hexbin(bin_rep@tagCount, bin_rep@input, xbins = 100)
+hbp1.4= plot(a1.4, trans = log, inv = exp, xlab = "rep1", ylab = "rep4", main = "", colramp = rainbow)
+
+dev.copy(png, 'mosaics/plots/rep1v4.png')
+dev.off()
+
+```
+
+```{r}
+#rep 2 v 4
+bin_rep<-readBins(type = c("chip","input"), fileName = c("mosaics/bins/CD6_sorted.bam_fragL200_bin200.txt", "mosaics/bins/CD10_sorted.bam_fragL200_bin200.txt"))
+
+a2.4 <- hexbin(bin_rep@tagCount, bin_rep@input, xbins = 100)
+hbp2.4= plot(a2.4, trans = log, inv = exp, xlab = "rep2", ylab = "rep4", main = "", colramp = rainbow)
+
+dev.copy(png, 'mosaics/plots/rep2v4.png')
+dev.off()
+
+```
+
+```{r}
+#rep 1 v 3
+bin_rep<-readBins(type = c("chip","input"), fileName = c("mosaics/bins/CD4_sorted.bam_fragL200_bin200.txt", "mosaics/bins/CD8_sorted.bam_fragL200_bin200.txt"))
+
+a1.3 <- hexbin(bin_rep@tagCount, bin_rep@input, xbins = 100)
+hbp1.3= plot(a1.3, trans = log, inv = exp, xlab = "rep1", ylab = "rep3", main = "", colramp = rainbow)
+
+dev.copy(png, 'mosaics/plots/rep1v3.png')
+dev.off()
+
+```
+Generally good reproducibility between reps, perhaps with the exception of rep 3 (higher count # relative to other reps).
+
+## Now compare between sample and ref, make fits to data, pick peaks, generate plots to assess
+
+### Preliminary peak picking - fragL 200, binsize 200bp.
+Peaks picked for each rep separately, as recommended by https://doi.org/10.5936/csbj.201401002
+```{r}
+for (i in 1:nrow(sample_file)) {
+  sample_name <- paste("mosaics/bins/", sample_file[i,1], sep = "")
+  sample_name <- str_replace(string = sample_name, pattern = ".bam", replacement = ".bam_fragL200_bin200.txt")
+  ref_name <- paste("mosaics/bins/", sample_file[i,2], sep = "")
+  ref_name <- str_replace(string = ref_name, pattern = ".bam", replacement = ".bam_fragL200_bin200.txt")
+  
+  print(paste("analyzing", sample_name, "against", ref_name))
+  
+  binTest <- readBins(type=c("chip", "input"), fileName= c(sample_name, ref_name))
+  count_data <- hexbin (binTest@input, binTest@tagCount, xbins=100)
+  control <- plot(count_data, trans=log, inv=exp, colramp=rainbow, xlab="WCE", ylab="ChIP", lcex=0.9)
+  hexVP.abline(control$plot.vp, a=0, b=sum(binTest@tagCount)/sum(binTest@input), lwd=0.2)
+  
+  dev.copy(png, paste("mosaics/plots/", sample_file$X3[i], "_counts.png", sep=""))
+  dev.off()
+  
+  fitTest <- mosaicsFit(binTest, analysisType="IO", bgEst="rMOM")
+  plot(fitTest)
+  
+  dev.copy(png, paste("mosaics/plots/", sample_file$X3[i], "_fit.png", sep=""))
+  dev.off()
+  peakTest <- mosaicsPeak(fitTest, signalModel="2S", FDR=0.01)
+  export(peakTest, type="bed", filename=paste("mosaics/final_peaks/", sample_file$X3[i], ".bed", sep=""))
+  export(peakTest, type="txt", filename=paste("mosaics/final_peaks/", sample_file$X3[i],  ".txt", sep=""))
+}
+```
+Reps 1-3 look good - overall linearity between WCE and IP samples, with outliers in IP that represent potential peaks. Off-diagonal points not present in control sample as expected. Rep 4 something went wrong - lots of off-angle counts in WCE, suggesting spurious unevenness in coverage of WCE. Run overlap between peaks to see if these are filtered out b/c not present across bioreps.
+

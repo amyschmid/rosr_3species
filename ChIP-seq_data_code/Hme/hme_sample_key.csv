@@ -1,0 +1,5 @@
+CD2_sorted.bam,CD1_sorted.bam,HME-pyrE2-rosr-pks,3876_2,3876_1,CD2_S2_L001_R1_001.fastq.gz,CD1_S1_L001_R1_001.fastq.gz
+CD4_sorted.bam,CD3_sorted.bam,HME-rosr1-pks,3876_4,3876_3,CD4_S4_L001_R1_001.fastq.gz,CD3_S3_L001_R1_001.fastq.gz
+CD6_sorted.bam,CD5_sorted.bam,HME-rosr2-pks,3876_6,3876_5,CD6_S6_L001_R1_001.fastq.gz,CD5_S5_L001_R1_001.fastq.gz
+CD8_sorted.bam,CD7_sorted.bam,HME-rosr3-pks,3876_8,3876_7,CD8_S8_L001_R1_001.fastq.gz,CD7_S7_L001_R1_001.fastq.gz
+CD10_sorted.bam,CD9_sorted.bam,HME-rosr4-pks,3876_10,3876_9,CD10_S10_L001_R1_001.fastq.gz,CD9_S9_L001_R1_001.fastq.gz
