@@ -19,4 +19,6 @@
 * GenomicFeatures v 1.54.4
 * trackViewer v 1.38.2
 * gggenes v 0.5.1
-* 
+* BiocManager v 1.30.23
+* mosaics v 2.40.0
+* hexbin v 1.28.4
