@@ -1,0 +1,228 @@
+---
+title: "2024-07-13-RosR-DEGplotting"
+output: html_document
+date: "2024-07-13"
+---
+
+
+Code to generate a log-scale correlation figure between genome-wide gene expression in pyrE and rosR strains, highlighting differentially expressed genes, and highlighting further genes that are ChIP-Seq targets of rosR 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#fresh start
+rm(list = ls())
+```
+
+#Load libraries
+```{r}
+
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(ggrepel))
+library(readxl)
+library(dplyr)
+library(openxlsx)
+library(ggrepel)
+
+```
+
+### Load normalised count and diff expr output csv files, and a list of genes to be highlighted.
+```{r load_data,warning=FALSE}
+
+#Load the normalised count and diff expr files 
+hme.counts <- read.csv("haloferax_mediterranei_HFX/normalized-counts.csv", row.names=1)
+hvo.counts <- as.matrix(read.csv("haloferax_volcanii/normalized-counts.csv",row.names = 1))
+
+hvo.rnaseq <- read.xlsx("haloferax_volcanii/analysis.xlsx", sheet="KO-vs-WT") 
+#HighlyDEgenes <- read.csv("Optimalonly_KOeffect_highlysigresults.csv", row.names=1) 
+hme.rnaseq <- read.xlsx("haloferax_mediterranei_HFX/analysis.xlsx", sheet = "KO-vs-WT")
+```
+
+#Plot scatterplot, highlighting DEG and genes nearby ChIP-seq peaks
+```{r}
+# select the genes to be highlighted in a few categories
+#1 - those differentially expressed >= LFC |1| and pval < 0.05
+#2 - those nearby ChIP-seq peaks AND DEG (and any in operons)
+#3 - chip+DEG+motif (Hme only, none for Hvo)
+#4 - Not significant
+
+
+#1 - select highly expressed genes for highlight
+hvo.deg = hvo.rnaseq %>%
+  filter (`logFC.(KO./.WT)` >= 1.0 | `logFC.(KO./.WT)` <= -0.92 ) %>%
+  filter (padj <= 0.05)
+
+write.csv (hvo.deg, file = "hvo_deg_lfc1_p0.05.csv")
+
+hme.deg = hme.rnaseq %>%
+  filter (`logFC.(KO./.WT)` >= 1.0 | `logFC.(KO./.WT)` <= -1.0 ) %>%
+  filter (padj <= 0.05)
+
+write.csv (hme.deg, file = "hme_deg_lfc1_p0.05.csv")
+
+#2 - ChIP + DEG
+hvo.chipdeg= c("HVO_RS10520" , "HVO_RS10515") #arlA1 and 2
+hme.chipdeg = c("HFX_RS08155" , "HFX_RS08370" , "HFX_RS13635") # ester cyclase, hypotheticals
+
+#3 - 
+hme.chipdegmotif = c("HFX_RS02255", "HFX_RS06975") #sulfatase, PGF protein
+
+```
+
+#find the average of normcount across replicates
+```{r}
+hme.countsavg=hme.counts[,1:2]
+colnames(hme.countsavg)=c("pyrE","rosR")
+hme.countsavg[,1]=rowMeans(hme.counts[,1:2])
+hme.countsavg[,2]=rowMeans(hme.counts[,3:6])
+hme.countsavg=as.data.frame(hme.countsavg)
+
+hvo.countsavg=hvo.counts[,1:2]
+colnames(hvo.countsavg)=c("pyrE","rosR")
+hvo.countsavg[,1]=rowMeans(hvo.counts[,1:2])
+hvo.countsavg[,2]=rowMeans(hvo.counts[,3:6])
+hvo.countsavg=as.data.frame(hvo.countsavg)
+
+```
+
+#Make flags to highlight genes in scatterplot, first for Hvo
+```{r}
+#Flag genes that are signficantly diff expressed, and those that are to be especially highlighted (chip-seq hits)
+hvo.l1=length(hvo.countsavg$pyrE)
+hvo.l2=length(hvo.deg$gene_id)
+hvo.l3=length(hvo.chipdeg)
+#hvo.l4=length(DEG.regulon$locus_tag)
+#hvo.l5 = length (big_highlight$locus_tag)
+
+hvo.flag1=as.character(vector(length=hvo.l1))
+#flag2=as.character(vector(length=l1))
+
+for (i in (1:hvo.l2)) {
+  relindex=which(rownames(hvo.countsavg)==hvo.deg$gene_id[i]) #highlight DEG in hvo
+  hvo.flag1[relindex]="DEG"
+}
+
+for (i in (1:hvo.l3)) {
+  relindex=which(rownames(hvo.countsavg)==hvo.chipdeg[i])
+  hvo.flag1[relindex]="chipdeg"
+}
+
+
+#for (i in (1:l4)) {
+ # relindex=which(rownames(normcountsavg)==DEG.regulon$locus_tag[i])
+  #flag2[relindex]="yes"
+  #flag1[relindex]="regulon"
+#}
+
+#for (i in (1:l5)) {
+ # relindex=which(rownames(normcountsavg)==big_highlight$locus_tag[i])
+  #flag2[relindex]="yes"
+  #flag1[relindex]="big_highlight"
+#}
+
+#Make a flag matrix so genes can be highlighted on plot
+#normcountsavg=cbind(normcountsavg,flag1,flag2)
+hvo.countsavg=cbind(hvo.countsavg,hvo.flag1)
+genenames=rownames(hvo.countsavg)
+hvo.countsavg=cbind(genenames,hvo.countsavg)
+write.csv (hvo.countsavg, file = "hvo.counts.flags.csv")
+
+```
+
+#Make flags to highlight genes in scatterplot, now for Hme
+```{r}
+#Flag genes that are signficantly diff expressed, and those that are to be especially highlighted (chip-seq hits)
+hme.l1=length(hme.countsavg$pyrE)
+hme.l2=length(hme.deg$gene_id)
+hme.l3=length(hme.chipdeg)
+hme.l4=length(hme.chipdegmotif)
+#hvo.l5 = length (big_highlight$locus_tag)
+
+hme.flag1=as.character(vector(length=hme.l1))
+#flag2=as.character(vector(length=l1))
+
+for (i in (1:hme.l2)) {
+  relindex=which(rownames(hme.countsavg)==hme.deg$gene_id[i]) #highlight DEG in hvo
+  hme.flag1[relindex]="DEG"
+}
+
+for (i in (1:hme.l3)) {
+  relindex=which(rownames(hme.countsavg)==hme.chipdeg[i])
+  hme.flag1[relindex]="chipdeg"
+}
+
+
+for (i in (1:hme.l4)) {
+  relindex=which(rownames(hme.countsavg)==hme.chipdegmotif[i])
+  #flag2[relindex]="yes"
+  hme.flag1[relindex]="chipdegmotif"
+}
+
+#for (i in (1:l5)) {
+ # relindex=which(rownames(normcountsavg)==big_highlight$locus_tag[i])
+  #flag2[relindex]="yes"
+  #flag1[relindex]="big_highlight"
+#}
+
+#Make a flag matrix so genes can be highlighted on plot
+#normcountsavg=cbind(normcountsavg,flag1,flag2)
+hme.countsavg=cbind(hme.countsavg,hme.flag1)
+genenames=rownames(hme.countsavg)
+hme.countsavg=cbind(genenames,hme.countsavg)
+write.csv (hme.countsavg, file = "hme.counts.flags.csv")
+
+```
+
+#make flags file to highlight specific genes on the scatter plot
+```{r}
+#read in file with flags (genes marked by significance category)
+hvo.countsavg.flags <- read.csv ("hvo.counts.flags.csv")
+hme.countsavg.flags <- read.csv ("hme.counts.flags.csv")
+
+#call out correct row for labels so that they can be annotated on the plot
+hvo.countsavg.flags$X <- row.names (hvo.countsavg.flags)
+hme.countsavg.flags$X <- row.names (hme.countsavg.flags)
+```
+
+```{r}
+#plot hvo
+p <- ggplot(hvo.countsavg.flags, aes(x = pyrE, y = rosR)) + 
+  geom_point(alpha = 0.5, aes(size = hvo.flag1, color = hvo.flag1)) + 
+  geom_text_repel (data = subset(hvo.countsavg.flags, hvo.flag1 == "chipdeg"), aes (pyrE, rosR, label = genenames)) +
+ # geom_text_repel() +
+  geom_abline(intercept = 0 , slope = 1 , size = 0.5 ) + 
+  scale_size_manual(values=c(4.0,2.0,0.5)) + scale_color_manual(values=c("hotpink","blue","grey")) +
+  scale_x_log10() + 
+  scale_y_log10() + theme_bw()+ 
+  theme(axis.text =element_text(size = 12), axis.title = element_text (size = 14)) +
+  xlab ("pyrE normalized counts") +
+  ylab ("rosR normalized counts")
+
+pdf("rosR.hvo.RNAseq.pdf", height = 4, width = 6)
+p
+dev.off()
+
+```
+
+```{r}
+#plot hme
+p <- ggplot(hme.countsavg.flags, aes(x = pyrE, y = rosR)) + 
+  geom_point(alpha = 0.5, aes(size = hme.flag1, color = hme.flag1)) + 
+  geom_text_repel (data = subset(hme.countsavg.flags, hme.flag1 == "chipdeg"), aes (pyrE, rosR, label = genenames), box.padding = 2.0) +
+   geom_text_repel (data = subset(hme.countsavg.flags, hme.flag1 == "chipdegmotif"), aes (pyrE, rosR, label = genenames), box.padding = 2.0) +
+  geom_text_repel (data = subset(hme.countsavg.flags, hme.flag1 == "chipdeg"), aes (pyrE, rosR, label = genenames), box.padding = 2.0) +
+ #  geom_text_repel (data = subset(hme.countsavg.flags, hme.flag1 == "DEG"), aes (pyrE, rosR, label = genenames)) +
+ # geom_text_repel() +
+  geom_abline(intercept = 0 , slope = 1 , size = 0.5 ) + 
+  scale_size_manual(values=c(5.0, 6.0,2.0,0.5)) + scale_color_manual(values=c( "hotpink","darkred", "blue", "grey")) +
+  scale_x_log10() + 
+  scale_y_log10() + theme_bw()+ 
+  theme(axis.text =element_text(size = 12), axis.title = element_text (size = 14)) +
+  xlab ("pyrE normalized counts") +
+  ylab ("rosR normalized counts")
+
+pdf("rosR.hme.RNAseq.pdf", height = 4, width = 6)
+p
+dev.off()
+
+```
